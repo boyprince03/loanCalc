@@ -14,6 +14,8 @@
         body {
             font-family: 'Inter', 'Noto Sans TC', sans-serif;
             -webkit-tap-highlight-color: transparent;
+            padding-bottom: 60px;
+            transition: padding-bottom 0.3s ease-in-out, background-color 0.3s, color 0.3s;
         }
         details summary::-webkit-details-marker { display: none; }
         .details-arrow { transition: transform 0.2s; }
@@ -26,7 +28,7 @@
         .tooltip a { color: #6366f1; text-decoration: underline; }
         .tooltip a:hover { color: #818cf8; }
 
-        /* 【新增】頁籤樣式 */
+        /* 頁籤樣式 */
         .tab-button {
             transition: all 0.3s;
             border-bottom: 2px solid transparent;
@@ -35,556 +37,732 @@
             color: #4f46e5; /* indigo-600 */
             border-bottom-color: #4f46e5;
         }
-        .calculator-panel {
-            display: none;
-        }
-        .calculator-panel.active {
-            display: block;
-        }
+        .calculator-panel { display: none; }
+        .calculator-panel.active { display: block; }
 
-        /* 【新增】數字輸入框上下箭頭按鈕 */
+        /* 數字輸入框上下箭頭按鈕 */
         .number-input-wrapper { position: relative; }
         .number-input-controls { position: absolute; right: 1px; top: 1px; bottom: 1px; display: flex; flex-direction: column; }
-        .number-input-controls button {
-            background-color: #f3f4f6; border: none; width: 2.5rem; height: 50%; display: flex; align-items: center; justify-content: center; color: #6b7280; cursor: pointer;
-        }
+        .number-input-controls button { background-color: #f3f4f6; border: none; width: 2.5rem; height: 50%; display: flex; align-items: center; justify-content: center; color: #6b7280; cursor: pointer; }
         .number-input-controls button:hover { background-color: #e5e7eb; }
         .number-input-controls button:first-child { border-bottom: 1px solid #d1d5db; border-top-right-radius: 0.5rem;}
         .number-input-controls button:last-child { border-bottom-right-radius: 0.5rem;}
+
+        /* 設定彈窗樣式 */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; }
+        .modal-overlay.visible { opacity: 1; visibility: visible; }
+        .modal-content { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 400px; transform: scale(0.9); transition: transform 0.3s, background-color 0.3s; }
+        .modal-overlay.visible .modal-content { transform: scale(1); }
+
+        /* ---- 【修改處 START】: 深色模式樣式 ---- */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #111827; /* gray-900 */
+                color: #d1d5db; /* gray-300 */
+            }
+            .bg-white, .modal-content {
+                background-color: #1f2937; /* gray-800 */
+            }
+            .bg-gray-100 {
+                background-color: #111827; /* gray-900 */
+            }
+            .bg-gray-50 {
+                background-color: #374151; /* gray-700 */
+            }
+            .text-gray-900, .text-gray-800, .text-gray-700 {
+                color: #f9fafb; /* gray-50 */
+            }
+            .text-gray-600, .text-gray-500 {
+                color: #9ca3af; /* gray-400 */
+            }
+            .text-gray-400 {
+                color: #6b7280; /* gray-500 */
+            }
+            .border-b, .border-gray-200, .border-gray-300 {
+                border-color: #4b5563; /* gray-600 */
+            }
+            input, select {
+                background-color: #374151 !important; /* gray-700 */
+                color: #f9fafb !important; /* gray-50 */
+                border-color: #6b7280 !important; /* gray-500 */
+            }
+            input::placeholder {
+                color: #9ca3af; /* gray-400 */
+            }
+            .tab-button {
+                color: #9ca3af; /* gray-400 */
+            }
+            .tab-button.active {
+                color: #a5b4fc; /* indigo-300 */
+                border-bottom-color: #a5b4fc;
+            }
+            .bg-indigo-50 {
+                background-color: rgba(79, 70, 229, 0.2); /* indigo-600 with opacity */
+            }
+            .border-indigo-200 {
+                border-color: #4338ca; /* indigo-700 */
+            }
+            .text-indigo-600 {
+                color: #c7d2fe; /* indigo-200 */
+            }
+            .number-input-controls button {
+                background-color: #4b5563;
+                color: #d1d5db;
+                border-color: #374151;
+            }
+            .number-input-controls button:hover {
+                 background-color: #6b7280;
+            }
+            .tooltip {
+                background-color: #111827;
+                color: #d1d5db;
+                border: 1px solid #4b5563;
+            }
+            .tooltip::after {
+                border-top-color: #111827;
+            }
+            .tooltip a {
+                color: #a5b4fc;
+            }
+            #settings-button {
+                background-color: rgba(31, 41, 55, 0.8);
+            }
+            #settings-button .text-gray-600 {
+                 stroke: #d1d5db;
+            }
+        }
+        /* ---- 【修改處 END】 ---- */
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+<!-- ... 之後的 body 內容維持不變 ... -->
+<body class="bg-gray-100 min-h-screen">
 
-<div class="w-full max-w-4xl mx-auto">
-    <div class="bg-white rounded-2xl shadow-lg">
-        <div class="flex border-b border-gray-200">
-            <button id="tabLoanCalc" class="tab-button active flex-1 py-4 px-2 text-center text-sm font-semibold text-gray-500 hover:bg-gray-50">
-                貸款月付金試算
-            </button>
-            <button id="tabDownPayment" class="tab-button flex-1 py-4 px-2 text-center text-sm font-semibold text-gray-500 hover:bg-gray-50">
-                頭期款準備試算
-            </button>
-        </div>
+<div class="fixed top-4 right-4 z-50">
+    <!-- ... existing code ... -->
+    <button id="settings-button" class="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-md hover:bg-gray-100 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-600"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </button>
+</div>
 
-        <div class="p-6 md:p-8">
-            <div id="panelLoanCalc" class="calculator-panel active">
-                <div class="mb-6">
-                    <label for="loanType" class="block text-sm font-medium text-gray-600 mb-2">貸款類型預設</label>
-                    <select id="loanType" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="personal">一般信貸</option>
-                        <option value="cars">汽機車貸款</option>
-                        <option value="mortgage">一般房貸</option>
-                        <option value="youth">新青年安心成家貸款</option>
-                        <option value="custom">自訂</option>
-                    </select>
-                </div>
+<div class="p-4">
+    <!-- ... existing code ... -->
+    <div class="w-full max-w-4xl mx-auto">
+        <div class="bg-white rounded-2xl shadow-lg">
+            <div class="flex border-b border-gray-200">
+                <button id="tabLoanCalc" class="tab-button active flex-1 py-4 px-2 text-center text-sm font-semibold text-gray-500 hover:bg-gray-50">
+                    貸款月付金試算
+                </button>
+                <button id="tabDownPayment" class="tab-button flex-1 py-4 px-2 text-center text-sm font-semibold text-gray-500 hover:bg-gray-50">
+                    頭期款準備試算
+                </button>
+            </div>
 
-                <div id="price-calculator-card" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                    <div>
-                        <label for="targetPrice" class="block text-sm font-medium text-gray-600 mb-2">目標房價/車價 (元)</label>
-                        <input type="text" id="targetPrice" inputmode="numeric" class="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：12,000,000">
-                    </div>
-                    <div>
-                        <label for="loanPercentage" class="block text-sm font-medium text-gray-600 mb-2">貸款成數</label>
-                        <select id="loanPercentage" class="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                            <option value="" disabled selected>請選擇貸款成數</option>
-                            <option value="0.9">九成 (90%)</option>
-                            <option value="0.85">八成五 (85%)</option>
-                            <option value="0.8">八成 (80%)</option>
-                            <option value="0.75">七成五 (75%)</option>
-                            <option value="0.7">七成 (70%)</option>
-                            <option value="0.6">六成 (60%)</option>
+            <div class="p-6 md:p-8">
+                <div id="panelLoanCalc" class="calculator-panel active">
+                    <div class="mb-6">
+                        <label for="loanType" class="block text-sm font-medium text-gray-600 mb-2">貸款類型預設</label>
+                        <select id="loanType" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="personal">一般信貸</option>
+                            <option value="cars">汽機車貸款</option>
+                            <option value="mortgage">一般房貸</option>
+                            <option value="youth">新青年安心成家貸款</option>
+                            <option value="custom">自訂</option>
                         </select>
                     </div>
-                    <div class="md:col-span-2">
-                        <h3 class="text-sm font-medium text-gray-500">預估頭期款</h3>
-                        <p id="downPaymentDisplay" class="text-xl font-bold text-gray-800">NT$ 0</p>
+
+                    <div id="price-calculator-card" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div>
+                            <label for="targetPrice" class="block text-sm font-medium text-gray-600 mb-2">目標房價/車價 (元)</label>
+                            <input type="text" id="targetPrice" inputmode="numeric" class="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：12,000,000">
+                        </div>
+                        <div>
+                            <label for="loanPercentage" class="block text-sm font-medium text-gray-600 mb-2">貸款成數</label>
+                            <select id="loanPercentage" class="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="" disabled selected>請選擇貸款成數</option>
+                                <option value="0.9">九成 (90%)</option>
+                                <option value="0.85">八成五 (85%)</option>
+                                <option value="0.8">八成 (80%)</option>
+                                <option value="0.75">七成五 (75%)</option>
+                                <option value="0.7">七成 (70%)</option>
+                                <option value="0.6">六成 (60%)</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <h3 class="text-sm font-medium text-gray-500">預估頭期款</h3>
+                            <p id="downPaymentDisplay" class="text-xl font-bold text-gray-800">NT$ 0</p>
+                        </div>
                     </div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div>
-                        <label for="loanAmount" class="block text-sm font-medium text-gray-600 mb-2">貸款金額 (元)</label>
-                        <input type="text" id="loanAmount" inputmode="numeric" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：1,000,000">
-                        <p id="amountChinese" class="text-xs text-gray-500 mt-1 h-4"></p>
-                    </div>
-                    <div>
-                        <div class="tooltip-container">
-                            <label for="interestRate" class="block text-sm font-medium text-gray-600 mb-2 mr-2">年利率 (%)</label>
-                            <svg class="info-icon w-4 h-4 text-gray-400 cursor-pointer" tabindex="0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            <div class="tooltip">
-                                <h4 class="font-bold mb-1">利率參考</h4>
-                                <p class="text-xs mb-2">- 信貸利率約 2% ~ 10%<br>- 房貸利率約 2% ~ 3%</p>
-                                <p class="text-xs">實際利率請參考銀行公告：</p>
-                                <ul class="text-xs list-disc list-inside">
-                                    <li><a href="https://www.cbc.gov.tw/tw/cp-323-1627-92911-1.html" target="_blank">台灣銀行-利率總覽</a></li>
-                                    <li><a href="https://www.ba.org.tw/PublicInformation/BusinessData" target="_blank">銀行公會-業務資料</a></li>
-                                </ul>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div>
+                            <label for="loanAmount" class="block text-sm font-medium text-gray-600 mb-2">貸款金額 (元)</label>
+                            <input type="text" id="loanAmount" inputmode="numeric" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：1,000,000">
+                            <p id="amountChinese" class="text-xs text-gray-500 mt-1 h-4"></p>
+                        </div>
+                        <div>
+                            <div class="tooltip-container">
+                                <label for="interestRate" class="block text-sm font-medium text-gray-600 mb-2 mr-2">年利率 (%)</label>
+                                <svg class="info-icon w-4 h-4 text-gray-400 cursor-pointer" tabindex="0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <div class="tooltip">
+                                    <h4 class="font-bold mb-1">利率參考</h4>
+                                    <p class="text-xs mb-2">- 信貸利率約 2% ~ 10%<br>- 房貸利率約 2% ~ 3%</p>
+                                    <p class="text-xs">實際利率請參考銀行公告：</p>
+                                    <ul class="text-xs list-disc list-inside">
+                                        <li><a href="https://www.cbc.gov.tw/tw/cp-323-1627-92911-1.html" target="_blank">台灣銀行-利率總覽</a></li>
+                                        <li><a href="https://www.ba.org.tw/PublicInformation/BusinessData" target="_blank">銀行公會-業務資料</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <input type="number" id="interestRate" step="0.01" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：2.5">
+                        </div>
+                        <div>
+                            <label for="loanYears" class="block text-sm font-medium text-gray-600 mb-2">分期年限 (年)</label>
+                            <div class="flex items-center">
+                                <input type="number" id="loanYears" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：20">
+                                <span class="mx-2 text-gray-500">=</span>
+                                <span id="loanMonths" class="w-24 text-center font-semibold text-indigo-600">0 期</span>
                             </div>
                         </div>
-                        <input type="number" id="interestRate" step="0.01" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：2.5">
-                    </div>
-                    <div>
-                        <label for="loanYears" class="block text-sm font-medium text-gray-600 mb-2">分期年限 (年)</label>
-                        <div class="flex items-center">
-                            <input type="number" id="loanYears" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：20">
-                            <span class="mx-2 text-gray-500">=</span>
-                            <span id="loanMonths" class="w-24 text-center font-semibold text-indigo-600">0 期</span>
+                        <div>
+                            <label for="processingFee" class="block text-sm font-medium text-gray-600 mb-2">開辦費 (元)</label>
+                            <input type="text" id="processingFee" inputmode="numeric" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：9,000">
                         </div>
                     </div>
-                    <div>
-                        <label for="processingFee" class="block text-sm font-medium text-gray-600 mb-2">開辦費 (元)</label>
-                        <input type="text" id="processingFee" inputmode="numeric" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：9,000">
+
+                    <div id="results" class="space-y-6">
+                        <div class="bg-indigo-50 p-6 rounded-lg border border-indigo-200 grid grid-cols-1 md:grid-cols-3 gap-6 text-center md:text-left">
+                            <div>
+                                <h3 class="text-sm font-medium text-gray-500">每月還款金額</h3>
+                                <p id="monthlyPayment" class="text-2xl lg:text-3xl font-bold text-indigo-600">NT$ 0</p>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-medium text-gray-500">貸款總利息</h3>
+                                <p id="totalInterest" class="text-2xl lg:text-3xl font-bold text-red-600">NT$ 0</p>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-medium text-gray-500">總支出金額</h3>
+                                <p id="totalCost" class="text-2xl lg:text-3xl font-bold text-gray-800">NT$ 0</p>
+                                <p id="totalCostChinese" class="text-xs text-gray-500 mt-1 h-4"></p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg border border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-700 mb-4">每期還款本金與利息曲線圖</h3>
+                            <div class="h-64 md:h-80"><canvas id="repaymentChart"></canvas></div>
+                        </div>
+                        <div class="bg-white rounded-lg border border-gray-200">
+                            <details class="p-6">
+                                <summary class="text-lg font-semibold text-gray-700 cursor-pointer list-none flex justify-between items-center">
+                                    <span>每期還款明細</span>
+                                    <svg class="w-5 h-5 details-arrow" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                </summary>
+                                <div class="mt-4 max-h-96 overflow-y-auto">
+                                    <table class="w-full text-sm text-left text-gray-500">
+                                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3">期數</th>
+                                            <th scope="col" class="px-6 py-3">還款日期</th>
+                                            <th scope="col" class="px-6 py-3">應繳金額</th>
+                                            <th scope="col" class="px-6 py-3">本金</th>
+                                            <th scope="col" class="px-6 py-3">利息</th>
+                                            <th scope="col" class="px-6 py-3">剩餘本金</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody id="amortizationTableBody"></tbody>
+                                    </table>
+                                </div>
+                            </details>
+                        </div>
                     </div>
+                    <div id="loan-calc-error-message" class="hidden mt-4 text-red-500 bg-red-100 p-4 rounded-lg"></div>
                 </div>
 
-                <div id="results" class="space-y-6">
-                    <div class="bg-indigo-50 p-6 rounded-lg border border-indigo-200 grid grid-cols-1 md:grid-cols-3 gap-6 text-center md:text-left">
+                <div id="panelDownPayment" class="calculator-panel">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                         <div>
-                            <h3 class="text-sm font-medium text-gray-500">每月還款金額</h3>
-                            <p id="monthlyPayment" class="text-2xl lg:text-3xl font-bold text-indigo-600">NT$ 0</p>
+                            <label for="propertyPrice" class="block text-sm font-medium text-gray-600 mb-2">目標房價/車價 (元)</label>
+                            <input type="text" id="propertyPrice" inputmode="numeric" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：12,000,000">
+                            <p id="propertyPriceChinese" class="text-xs text-gray-500 mt-1 h-4"></p>
                         </div>
                         <div>
-                            <h3 class="text-sm font-medium text-gray-500">貸款總利息</h3>
-                            <p id="totalInterest" class="text-2xl lg:text-3xl font-bold text-red-600">NT$ 0</p>
-                        </div>
-                        <div>
-                            <h3 class="text-sm font-medium text-gray-500">總支出金額</h3>
-                            <p id="totalCost" class="text-2xl lg:text-3xl font-bold text-gray-800">NT$ 0</p>
-                            <p id="totalCostChinese" class="text-xs text-gray-500 mt-1 h-4"></p>
-                        </div>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg border border-gray-200">
-                        <h3 class="text-lg font-semibold text-gray-700 mb-4">每期還款本金與利息曲線圖</h3>
-                        <div class="h-64 md:h-80"><canvas id="repaymentChart"></canvas></div>
-                    </div>
-                    <div class="bg-white rounded-lg border border-gray-200">
-                        <details class="p-6">
-                            <summary class="text-lg font-semibold text-gray-700 cursor-pointer list-none flex justify-between items-center">
-                                <span>每期還款明細</span>
-                                <svg class="w-5 h-5 details-arrow" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                            </summary>
-                            <div class="mt-4 max-h-96 overflow-y-auto">
-                                <table class="w-full text-sm text-left text-gray-500">
-                                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
-                                    <tr><th scope="col" class="px-6 py-3">期數</th><th scope="col" class="px-6 py-3">應繳金額</th><th scope="col" class="px-6 py-3">本金</th><th scope="col" class="px-6 py-3">利息</th><th scope="col" class="px-6 py-3">剩餘本金</th></tr>
-                                    </thead>
-                                    <tbody id="amortizationTableBody"></tbody>
-                                </table>
+                            <label for="desiredMonthlyPayment" class="block text-sm font-medium text-gray-600 mb-2">期望月付金額 (元)</label>
+                            <div class="number-input-wrapper">
+                                <input type="text" id="desiredMonthlyPayment" inputmode="numeric" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：40,000">
+                                <div class="number-input-controls">
+                                    <button id="monthly-payment-up">▲</button>
+                                    <button id="monthly-payment-down">▼</button>
+                                </div>
                             </div>
-                        </details>
+                        </div>
+                        <div>
+                            <label for="interestRateDP" class="block text-sm font-medium text-gray-600 mb-2">年利率 (%)</label>
+                            <input type="number" id="interestRateDP" step="0.01" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" value="2.1">
+                        </div>
+                        <div>
+                            <label for="loanYearsDP" class="block text-sm font-medium text-gray-600 mb-2">分期年限 (年)</label>
+                            <input type="number" id="loanYearsDP" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" value="30">
+                        </div>
                     </div>
+
+                    <div id="dp-results" class="space-y-4 bg-indigo-50 p-6 rounded-lg border border-indigo-200">
+                        <h2 class="text-xl font-bold text-gray-800 text-center mb-4">計算結果</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                            <div class="bg-white p-4 rounded-lg">
+                                <h3 class="text-sm font-medium text-gray-500">建議頭期款</h3>
+                                <p id="downPaymentResult" class="text-2xl font-bold text-indigo-600">NT$ 0</p>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg">
+                                <h3 class="text-sm font-medium text-gray-500">可負擔貸款</h3>
+                                <p id="affordableLoanResult" class="text-2xl font-bold text-gray-700">NT$ 0</p>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg">
+                                <h3 class="text-sm font-medium text-gray-500">頭期款佔比</h3>
+                                <p id="downPaymentPercentage" class="text-2xl font-bold text-gray-700">0%</p>
+                            </div>
+                        </div>
+                        <p id="dp-info-message" class="text-center text-xs text-gray-500 pt-2"></p>
+                    </div>
+                    <div id="dp-calc-error-message" class="hidden mt-4 text-red-500 bg-red-100 p-4 rounded-lg"></div>
                 </div>
-                <div id="loan-calc-error-message" class="hidden mt-4 text-red-500 bg-red-100 p-4 rounded-lg"></div>
+
             </div>
+        </div>
+        <footer class="text-center mt-4 text-xs text-gray-400">
+            <p>此試算結果僅供參考，實際貸款條件與金額請以銀行提供為準。</p>
+        </footer>
+    </div>
+</div>
 
-            <div id="panelDownPayment" class="calculator-panel">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div>
-                        <label for="propertyPrice" class="block text-sm font-medium text-gray-600 mb-2">目標房價/車價 (元)</label>
-                        <input type="text" id="propertyPrice" inputmode="numeric" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：12,000,000">
-                        <p id="propertyPriceChinese" class="text-xs text-gray-500 mt-1 h-4"></p>
-                    </div>
-                    <div>
-                        <label for="desiredMonthlyPayment" class="block text-sm font-medium text-gray-600 mb-2">期望月付金額 (元)</label>
-                        <div class="number-input-wrapper">
-                            <input type="text" id="desiredMonthlyPayment" inputmode="numeric" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：40,000">
-                            <div class="number-input-controls">
-                                <button id="monthly-payment-up">▲</button>
-                                <button id="monthly-payment-down">▼</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div>
-                        <label for="interestRateDP" class="block text-sm font-medium text-gray-600 mb-2">年利率 (%)</label>
-                        <input type="number" id="interestRateDP" step="0.01" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" value="2.1">
-                    </div>
-                    <div>
-                        <label for="loanYearsDP" class="block text-sm font-medium text-gray-600 mb-2">分期年限 (年)</label>
-                        <input type="number" id="loanYearsDP" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" value="30">
-                    </div>
-                </div>
-
-                <div id="dp-results" class="space-y-4 bg-indigo-50 p-6 rounded-lg border border-indigo-200">
-                    <h2 class="text-xl font-bold text-gray-800 text-center mb-4">計算結果</h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                        <div class="bg-white p-4 rounded-lg">
-                            <h3 class="text-sm font-medium text-gray-500">建議頭期款</h3>
-                            <p id="downPaymentResult" class="text-2xl font-bold text-indigo-600">NT$ 0</p>
-                        </div>
-                        <div class="bg-white p-4 rounded-lg">
-                            <h3 class="text-sm font-medium text-gray-500">可負擔貸款</h3>
-                            <p id="affordableLoanResult" class="text-2xl font-bold text-gray-700">NT$ 0</p>
-                        </div>
-                        <div class="bg-white p-4 rounded-lg">
-                            <h3 class="text-sm font-medium text-gray-500">頭期款佔比</h3>
-                            <p id="downPaymentPercentage" class="text-2xl font-bold text-gray-700">0%</p>
-                        </div>
-                    </div>
-                    <p id="dp-info-message" class="text-center text-xs text-gray-500 pt-2"></p>
-                </div>
-                <div id="dp-calc-error-message" class="hidden mt-4 text-red-500 bg-red-100 p-4 rounded-lg"></div>
-            </div>
-
+<div id="settings-modal" class="modal-overlay">
+    <!-- ... existing code ... -->
+    <div class="modal-content">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-lg font-bold text-gray-800">設定</h2>
+            <button id="close-modal-button" class="text-gray-500 hover:text-gray-800 text-2xl leading-none">&times;</button>
+        </div>
+        <div id="remove-ads-container">
+            <button id="remove-ads-button" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                移除廣告 (一次性付費)
+            </button>
+            <p class="text-xs text-gray-500 mt-2 text-center">您的支持是我們進步的動力！</p>
+        </div>
+        <div id="ads-removed-message" class="hidden text-center text-gray-600 py-4">
+            <p>✓ 已成功移除廣告，感謝您的支持！</p>
         </div>
     </div>
-    <footer class="text-center mt-4 text-xs text-gray-400">
-        <p>此試算結果僅供參考，實際貸款條件與金額請以銀行提供為準。</p>
-    </footer>
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // ---- 通用 DOM 元素 ----
-        const tabLoanCalc = document.getElementById('tabLoanCalc');
-        const tabDownPayment = document.getElementById('tabDownPayment');
-        const panelLoanCalc = document.getElementById('panelLoanCalc');
-        const panelDownPayment = document.getElementById('panelDownPayment');
+    // ... 腳本內容維持不變 ...
+        /**
+         * 這個函式由 Android 原生程式碼 (Kotlin) 呼叫，
+         * 用於根據購買狀態更新 WebView 的 UI。
+         * @param {boolean} isRemoved - 是否已購買移除廣告。
+         */
+    // ... existing code ...
+        function updateUiForAds(isRemoved) {
+            const removeAdsContainer = document.getElementById('remove-ads-container');
+            const adsRemovedMessage = document.getElementById('ads-removed-message');
 
-        // ---- 面板1: 貸款月付金試算 DOM 元素 ----
-        const loanTypeSelect = document.getElementById('loanType');
-        const loanAmountInput = document.getElementById('loanAmount');
-        const interestRateInput = document.getElementById('interestRate');
-        const loanYearsInput = document.getElementById('loanYears');
-        const processingFeeInput = document.getElementById('processingFee');
-        const loanMonthsDisplay = document.getElementById('loanMonths');
-        const monthlyPaymentDisplay = document.getElementById('monthlyPayment');
-        const totalInterestDisplay = document.getElementById('totalInterest');
-        const totalCostDisplay = document.getElementById('totalCost');
-        const amortizationTableBody = document.getElementById('amortizationTableBody');
-        const loanCalcErrorMessageDiv = document.getElementById('loan-calc-error-message');
-        const amountChineseDisplay = document.getElementById('amountChinese');
-        const totalCostChineseDisplay = document.getElementById('totalCostChinese');
-        const chartCanvas = document.getElementById('repaymentChart');
-        let repaymentChart;
-
-        // 【*** 程式碼新增處 START ***】
-        // 房貸/車貸反推卡片 DOM 元素
-        const priceCalculatorCard = document.getElementById('price-calculator-card');
-        const targetPriceInput = document.getElementById('targetPrice');
-        const loanPercentageSelect = document.getElementById('loanPercentage');
-        const downPaymentDisplay = document.getElementById('downPaymentDisplay');
-        // 【*** 程式碼新增處 END ***】
-
-        // ---- 面板2: 頭期款準備試算 DOM 元素 ----
-        const propertyPriceInput = document.getElementById('propertyPrice');
-        const propertyPriceChineseDisplay = document.getElementById('propertyPriceChinese');
-        const desiredMonthlyPaymentInput = document.getElementById('desiredMonthlyPayment');
-        const interestRateDPInput = document.getElementById('interestRateDP');
-        const loanYearsDPInput = document.getElementById('loanYearsDP');
-        const downPaymentResultDisplay = document.getElementById('downPaymentResult');
-        const affordableLoanResultDisplay = document.getElementById('affordableLoanResult');
-        const downPaymentPercentageDisplay = document.getElementById('downPaymentPercentage');
-        const dpCalcErrorMessageDiv = document.getElementById('dp-calc-error-message');
-        const dpInfoMessage = document.getElementById('dp-info-message');
-        const monthlyPaymentUpBtn = document.getElementById('monthly-payment-up');
-        const monthlyPaymentDownBtn = document.getElementById('monthly-payment-down');
-
-
-        // ---- 通用功能與設定 ----
-        const currencyFormatter = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
-        const loanPresets = {
-            personal: { amount: 500000, rate: 3.5, years: 7, fee: 9000 },
-            mortgage: { amount: 10000000, rate: 2.1, years: 30, fee: 5000 },
-            cars: { amount: 800000, rate: 3.99, years: 5, fee: 5000 },
-            youth: { amount: 10000000, rate: 2.15, years: 40, fee: 3000 },
-            custom: { amount: '', rate: '', years: '', fee: '' }
-        };
-
-        // 頁籤切換邏輯
-        function switchTab(activeTab) {
-            if (activeTab === 'loanCalc') {
-                tabLoanCalc.classList.add('active');
-                tabDownPayment.classList.remove('active');
-                panelLoanCalc.classList.add('active');
-                panelDownPayment.classList.remove('active');
+            if (isRemoved) {
+                document.body.style.paddingBottom = '0px'; // 移除為廣告預留的空間
+                if (removeAdsContainer) removeAdsContainer.style.display = 'none';
+                if (adsRemovedMessage) adsRemovedMessage.style.display = 'block';
             } else {
-                tabLoanCalc.classList.remove('active');
-                tabDownPayment.classList.add('active');
-                panelLoanCalc.classList.remove('active');
-                panelDownPayment.classList.add('active');
-                calculateDownPayment(); // 切換時立即計算一次
+                document.body.style.paddingBottom = '60px'; // 恢復為廣告預留的空間
+                if (removeAdsContainer) removeAdsContainer.style.display = 'block';
+                if (adsRemovedMessage) adsRemovedMessage.style.display = 'none';
             }
         }
-        tabLoanCalc.addEventListener('click', () => switchTab('loanCalc'));
-        tabDownPayment.addEventListener('click', () => switchTab('downPayment'));
 
-        // ---- 面板1: 貸款月付金試算 邏輯 ----
-        function setupLoanCalculator() {
-            loanTypeSelect.addEventListener('change', (e) => {
-                const selectedType = e.target.value;
+        document.addEventListener('DOMContentLoaded', () => {
+            // ---- 通用 DOM 元素 ----
+            const tabLoanCalc = document.getElementById('tabLoanCalc');
+    // ... existing code ...
+            const tabDownPayment = document.getElementById('tabDownPayment');
+            const panelLoanCalc = document.getElementById('panelLoanCalc');
+            const panelDownPayment = document.getElementById('panelDownPayment');
 
-                // 【*** 程式碼新增處 START ***】
-                // 根據選擇的貸款類型，決定是否顯示房價反推卡片
-                if (selectedType === 'mortgage' || selectedType === 'cars' || selectedType === 'youth') {
-                    priceCalculatorCard.classList.remove('hidden');
+            // ---- 面板1: 貸款月付金試算 DOM 元素 ----
+            const loanTypeSelect = document.getElementById('loanType');
+            const loanAmountInput = document.getElementById('loanAmount');
+            const interestRateInput = document.getElementById('interestRate');
+            const loanYearsInput = document.getElementById('loanYears');
+            const processingFeeInput = document.getElementById('processingFee');
+            const loanMonthsDisplay = document.getElementById('loanMonths');
+            const monthlyPaymentDisplay = document.getElementById('monthlyPayment');
+            const totalInterestDisplay = document.getElementById('totalInterest');
+            const totalCostDisplay = document.getElementById('totalCost');
+            const amortizationTableBody = document.getElementById('amortizationTableBody');
+            const loanCalcErrorMessageDiv = document.getElementById('loan-calc-error-message');
+            const amountChineseDisplay = document.getElementById('amountChinese');
+            const totalCostChineseDisplay = document.getElementById('totalCostChinese');
+            const chartCanvas = document.getElementById('repaymentChart');
+            let repaymentChart;
+
+            // 房貸/車貸反推卡片 DOM 元素
+            const priceCalculatorCard = document.getElementById('price-calculator-card');
+            const targetPriceInput = document.getElementById('targetPrice');
+            const loanPercentageSelect = document.getElementById('loanPercentage');
+            const downPaymentDisplay = document.getElementById('downPaymentDisplay');
+
+            // ---- 面板2: 頭期款準備試算 DOM 元素 ----
+            const propertyPriceInput = document.getElementById('propertyPrice');
+            const propertyPriceChineseDisplay = document.getElementById('propertyPriceChinese');
+            const desiredMonthlyPaymentInput = document.getElementById('desiredMonthlyPayment');
+            const interestRateDPInput = document.getElementById('interestRateDP');
+            const loanYearsDPInput = document.getElementById('loanYearsDP');
+            const downPaymentResultDisplay = document.getElementById('downPaymentResult');
+            const affordableLoanResultDisplay = document.getElementById('affordableLoanResult');
+            const downPaymentPercentageDisplay = document.getElementById('downPaymentPercentage');
+            const dpCalcErrorMessageDiv = document.getElementById('dp-calc-error-message');
+            const dpInfoMessage = document.getElementById('dp-info-message');
+            const monthlyPaymentUpBtn = document.getElementById('monthly-payment-up');
+            const monthlyPaymentDownBtn = document.getElementById('monthly-payment-down');
+
+
+            // ---- 通用功能與設定 ----
+            const currencyFormatter = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    // ... existing code ...
+            const loanPresets = {
+                personal: { amount: 500000, rate: 3.5, years: 7, fee: 9000 },
+                mortgage: { amount: 10000000, rate: 2.1, years: 30, fee: 5000 },
+                cars: { amount: 800000, rate: 3.99, years: 5, fee: 5000 },
+                youth: { amount: 10000000, rate: 2.15, years: 40, fee: 3000 },
+                custom: { amount: '', rate: '', years: '', fee: '' }
+            };
+
+            // 頁籤切換邏輯
+            function switchTab(activeTab) {
+    // ... existing code ...
+                if (activeTab === 'loanCalc') {
+                    tabLoanCalc.classList.add('active');
+                    tabDownPayment.classList.remove('active');
+                    panelLoanCalc.classList.add('active');
+                    panelDownPayment.classList.remove('active');
                 } else {
-                    priceCalculatorCard.classList.add('hidden');
-                }
-                // 【*** 程式碼新增處 END ***】
-
-                if (loanPresets[selectedType] && selectedType !== 'custom') {
-                    const preset = loanPresets[selectedType];
-                    setFormattedAmount(loanAmountInput, preset.amount, amountChineseDisplay);
-                    interestRateInput.value = preset.rate;
-                    loanYearsInput.value = preset.years;
-                    setFormattedAmount(processingFeeInput, preset.fee);
-                    loanYearsInput.dispatchEvent(new Event('input'));
-                    // calculateAndDisplay(); // setFormattedAmount 會觸發計算，這裡可以省略避免重複
-                }
-            });
-
-            // 【*** 程式碼修正處 START ***】
-            // 將計算邏輯綁定到格式化函數的 callback 中，確保數值變動時一定會重新計算
-            addFormattingListener(loanAmountInput, amountChineseDisplay, calculateAndDisplay);
-            addFormattingListener(processingFeeInput, null, calculateAndDisplay);
-            addFormattingListener(targetPriceInput, null, calculateLoanFromPrice); // 新增目標價格的監聽
-
-            loanPercentageSelect.addEventListener('change', calculateLoanFromPrice); // 新增貸款成數的監聽
-
-            interestRateInput.addEventListener('input', calculateAndDisplay);
-
-            loanYearsInput.addEventListener('input', () => {
-                const years = parseInt(loanYearsInput.value, 10);
-                loanMonthsDisplay.textContent = (!isNaN(years) && years > 0) ? `${years * 12} 期` : `0 期`;
-                calculateAndDisplay();
-            });
-            // 【*** 程式碼修正處 END ***】
-
-            // 【*** 程式碼新增處 START ***】
-            // 從目標房價/車價和貸款成數，計算貸款金額和頭期款
-            function calculateLoanFromPrice() {
-                const price = parseFloat(targetPriceInput.value.replace(/,/g, '')) || 0;
-                const percentage = parseFloat(loanPercentageSelect.value) || 0;
-
-                if (price > 0 && percentage > 0) {
-                    const loanAmount = price * percentage;
-                    const downPayment = price * (1 - percentage);
-
-                    // 設定貸款金額，這會觸發 addFormattingListener 進而呼叫 calculateAndDisplay
-                    setFormattedAmount(loanAmountInput, loanAmount, amountChineseDisplay);
-                    downPaymentDisplay.textContent = currencyFormatter.format(downPayment);
-                } else {
-                    downPaymentDisplay.textContent = 'NT$ 0';
+                    tabLoanCalc.classList.remove('active');
+                    tabDownPayment.classList.add('active');
+                    panelLoanCalc.classList.remove('active');
+                    panelDownPayment.classList.add('active');
+                    calculateDownPayment(); // 切換時立即計算一次
                 }
             }
-            // 【*** 程式碼新增處 END ***】
+            tabLoanCalc.addEventListener('click', () => switchTab('loanCalc'));
+            tabDownPayment.addEventListener('click', () => switchTab('downPayment'));
 
-            function calculateAndDisplay() {
-                const P = parseFloat(loanAmountInput.value.replace(/,/g, ''));
-                const annualRate = parseFloat(interestRateInput.value);
-                const years = parseInt(loanYearsInput.value, 10);
-                const fee = parseFloat(processingFeeInput.value.replace(/,/g, '')) || 0;
+            // ---- 面板1: 貸款月付金試算 邏輯 ----
+            function setupLoanCalculator() {
+    // ... existing code ...
+                loanTypeSelect.addEventListener('change', (e) => {
+                    const selectedType = e.target.value;
 
-                loanCalcErrorMessageDiv.classList.add('hidden');
-                loanCalcErrorMessageDiv.textContent = '';
-
-                if (isNaN(P) || P <= 0 || isNaN(annualRate) || annualRate < 0 || isNaN(years) || years <= 0) {
-                    monthlyPaymentDisplay.textContent = 'NT$ 0';
-                    totalInterestDisplay.textContent = 'NT$ 0';
-                    totalCostDisplay.textContent = 'NT$ 0';
-                    totalCostChineseDisplay.textContent = '';
-                    amortizationTableBody.innerHTML = '';
-                    if (repaymentChart) repaymentChart.destroy();
-                    if(P > 0 || annualRate > 0 || years > 0) {
-                       loanCalcErrorMessageDiv.textContent = '請輸入有效的正數貸款金額、利率與年限。';
-                       loanCalcErrorMessageDiv.classList.remove('hidden');
+                    if (selectedType === 'mortgage' || selectedType === 'cars' || selectedType === 'youth') {
+                        priceCalculatorCard.classList.remove('hidden');
+                    } else {
+                        priceCalculatorCard.classList.add('hidden');
                     }
-                    return;
+
+                    if (loanPresets[selectedType] && selectedType !== 'custom') {
+                        const preset = loanPresets[selectedType];
+                        setFormattedAmount(loanAmountInput, preset.amount, amountChineseDisplay);
+                        interestRateInput.value = preset.rate;
+                        loanYearsInput.value = preset.years;
+                        setFormattedAmount(processingFeeInput, preset.fee);
+                        loanYearsInput.dispatchEvent(new Event('input'));
+                    }
+                });
+
+                addFormattingListener(loanAmountInput, amountChineseDisplay, calculateAndDisplay);
+                addFormattingListener(processingFeeInput, null, calculateAndDisplay);
+                addFormattingListener(targetPriceInput, null, calculateLoanFromPrice); // 新增目標價格的監聽
+                loanPercentageSelect.addEventListener('change', calculateLoanFromPrice); // 新增貸款成數的監聽
+                interestRateInput.addEventListener('input', calculateAndDisplay);
+                loanYearsInput.addEventListener('input', () => {
+                    const years = parseInt(loanYearsInput.value, 10);
+                    loanMonthsDisplay.textContent = (!isNaN(years) && years > 0) ? `${years * 12} 期` : `0 期`;
+                    calculateAndDisplay();
+                });
+
+                function calculateLoanFromPrice() {
+    // ... existing code ...
+                    const price = parseFloat(targetPriceInput.value.replace(/,/g, '')) || 0;
+                    const percentage = parseFloat(loanPercentageSelect.value) || 0;
+
+                    if (price > 0 && percentage > 0) {
+                        const loanAmount = price * percentage;
+                        const downPayment = price * (1 - percentage);
+                        setFormattedAmount(loanAmountInput, loanAmount, amountChineseDisplay);
+                        downPaymentDisplay.textContent = currencyFormatter.format(downPayment);
+                    } else {
+                        downPaymentDisplay.textContent = 'NT$ 0';
+                    }
                 }
 
-                updateLoanTypeSelector();
+                function calculateAndDisplay() {
+    // ... existing code ...
+                    const P = parseFloat(loanAmountInput.value.replace(/,/g, ''));
+                    const annualRate = parseFloat(interestRateInput.value);
+                    const years = parseInt(loanYearsInput.value, 10);
+                    const fee = parseFloat(processingFeeInput.value.replace(/,/g, '')) || 0;
 
-                const i = annualRate / 100 / 12;
-                const n = years * 12;
-                const M = (i === 0) ? (P / n) : (P * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1));
-                const totalInterest = (M * n) - P;
-                const totalCost = P + totalInterest + fee;
+                    loanCalcErrorMessageDiv.classList.add('hidden');
+                    loanCalcErrorMessageDiv.textContent = '';
 
-                monthlyPaymentDisplay.textContent = currencyFormatter.format(M);
-                totalInterestDisplay.textContent = currencyFormatter.format(totalInterest);
-                totalCostDisplay.textContent = currencyFormatter.format(totalCost);
-                totalCostChineseDisplay.textContent = formatToChineseUnits(totalCost);
+                    if (isNaN(P) || P <= 0 || isNaN(annualRate) || annualRate < 0 || isNaN(years) || years <= 0) {
+                        monthlyPaymentDisplay.textContent = 'NT$ 0';
+                        totalInterestDisplay.textContent = 'NT$ 0';
+                        totalCostDisplay.textContent = 'NT$ 0';
+                        totalCostChineseDisplay.textContent = '';
+                        amortizationTableBody.innerHTML = '';
+                        if (repaymentChart) repaymentChart.destroy();
+                        if(P > 0 || annualRate > 0 || years > 0) {
+                           loanCalcErrorMessageDiv.textContent = '請輸入有效的正數貸款金額、利率與年限。';
+                           loanCalcErrorMessageDiv.classList.remove('hidden');
+                        }
+                        return;
+                    }
 
-                let balance = P;
-                const amortizationData = [];
-                const principalData = [];
-                const interestData = [];
-                const labels = [];
-                for (let month = 1; month <= n; month++) {
-                    const interestPayment = (i === 0) ? 0 : balance * i;
-                    const principalPayment = M - interestPayment;
-                    balance -= principalPayment;
-                    amortizationData.push({ month, monthlyPayment: M, principalPayment, interestPayment, balance: Math.max(0, balance) });
-                    principalData.push(principalPayment.toFixed(2));
-                    interestData.push(interestPayment.toFixed(2));
-                    labels.push(month);
+                    updateLoanTypeSelector();
+
+                    const i = annualRate / 100 / 12;
+                    const n = years * 12;
+                    const M = (i === 0) ? (P / n) : (P * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1));
+                    const totalInterest = (M * n) - P;
+                    const totalCost = P + totalInterest + fee;
+
+                    monthlyPaymentDisplay.textContent = currencyFormatter.format(M);
+                    totalInterestDisplay.textContent = currencyFormatter.format(totalInterest);
+                    totalCostDisplay.textContent = currencyFormatter.format(totalCost);
+                    totalCostChineseDisplay.textContent = formatToChineseUnits(totalCost);
+
+                    let balance = P;
+                    const amortizationData = [];
+                    const principalData = [];
+                    const interestData = [];
+                    const labels = [];
+                    const startDate = new Date(); // 取得今天日期作為起始日
+
+                    for (let month = 1; month <= n; month++) {
+                        const interestPayment = (i === 0) ? 0 : balance * i;
+                        const principalPayment = M - interestPayment;
+                        balance -= principalPayment;
+
+                        const paymentDate = new Date(startDate);
+                        paymentDate.setMonth(startDate.getMonth() + month - 1); // 計算每期還款日
+                        const dateString = `${paymentDate.getFullYear()}/${(paymentDate.getMonth() + 1).toString().padStart(2, '0')}/${paymentDate.getDate().toString().padStart(2, '0')}`;
+
+                        amortizationData.push({ month, paymentDate: dateString, monthlyPayment: M, principalPayment, interestPayment, balance: Math.max(0, balance) });
+                        principalData.push(principalPayment.toFixed(2));
+                        interestData.push(interestPayment.toFixed(2));
+                        labels.push(month);
+                    }
+                    updateAmortizationTable(amortizationData);
+                    updateChart(labels, principalData, interestData);
                 }
-                updateAmortizationTable(amortizationData);
-                updateChart(labels, principalData, interestData);
-            }
 
-            function updateLoanTypeSelector() {
-                const currentAmount = parseFloat(loanAmountInput.value.replace(/,/g, ''));
-                const currentRate = parseFloat(interestRateInput.value);
-                const currentYears = parseInt(loanYearsInput.value, 10);
-                const currentFee = parseFloat(processingFeeInput.value.replace(/,/g, '')) || 0;
-                let matchedPreset = 'custom';
-                for (const key in loanPresets) {
-                    if (key !== 'custom') {
-                        const preset = loanPresets[key];
-                        if (preset.amount === currentAmount && preset.rate === currentRate && preset.years === currentYears && preset.fee === currentFee) {
-                            matchedPreset = key;
-                            break;
+                function updateLoanTypeSelector() {
+    // ... existing code ...
+                    const currentAmount = parseFloat(loanAmountInput.value.replace(/,/g, ''));
+                    const currentRate = parseFloat(interestRateInput.value);
+                    const currentYears = parseInt(loanYearsInput.value, 10);
+                    const currentFee = parseFloat(processingFeeInput.value.replace(/,/g, '')) || 0;
+                    let matchedPreset = 'custom';
+                    for (const key in loanPresets) {
+                        if (key !== 'custom') {
+                            const preset = loanPresets[key];
+                            if (preset.amount === currentAmount && preset.rate === currentRate && preset.years === currentYears && preset.fee === currentFee) {
+                                matchedPreset = key;
+                                break;
+                            }
                         }
                     }
+                    loanTypeSelect.value = matchedPreset;
                 }
-                loanTypeSelect.value = matchedPreset;
-            }
 
-            function updateAmortizationTable(data) {
-                amortizationTableBody.innerHTML = '';
-                const numberFormatter = new Intl.NumberFormat('zh-TW', { style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                data.forEach(row => {
-                    const tr = document.createElement('tr');
-                    tr.className = 'bg-white border-b hover:bg-gray-50';
-                    tr.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${row.month}</td><td class="px-6 py-4">${numberFormatter.format(row.monthlyPayment)}</td><td class="px-6 py-4 text-green-600">${numberFormatter.format(row.principalPayment)}</td><td class="px-6 py-4 text-red-600">${numberFormatter.format(row.interestPayment)}</td><td class="px-6 py-4">${numberFormatter.format(row.balance)}</td>`;
-                    amortizationTableBody.appendChild(tr);
+                function updateAmortizationTable(data) {
+    // ... existing code ...
+                    amortizationTableBody.innerHTML = '';
+                    const numberFormatter = new Intl.NumberFormat('zh-TW', { style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                    data.forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'bg-white border-b hover:bg-gray-50';
+                        tr.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${row.month}</td><td class="px-6 py-4">${row.paymentDate}</td><td class="px-6 py-4">${numberFormatter.format(row.monthlyPayment)}</td><td class="px-6 py-4 text-green-600">${numberFormatter.format(row.principalPayment)}</td><td class="px-6 py-4 text-red-600">${numberFormatter.format(row.interestPayment)}</td><td class="px-6 py-4">${numberFormatter.format(row.balance)}</td>`;
+                        amortizationTableBody.appendChild(tr);
+                    });
+                }
+
+                function updateChart(labels, principalData, interestData) {
+    // ... existing code ...
+                    if (repaymentChart) repaymentChart.destroy();
+                    const ctx = chartCanvas.getContext('2d');
+                    repaymentChart = new Chart(ctx, {
+                        type: 'line', data: { labels: labels, datasets: [ { label: '本金', data: principalData, borderColor: 'rgb(79, 70, 229)', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.4 }, { label: '利息', data: interestData, borderColor: 'rgb(220, 38, 38)', backgroundColor: 'rgba(220, 38, 38, 0.1)', fill: true, tension: 0.4 } ] },
+                        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: (value) => 'NT$ ' + new Intl.NumberFormat().format(value) } }, x: { title: { display: true, text: '期數 (月)' } } }, plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${currencyFormatter.format(context.parsed.y)}` } } }, interaction: { intersect: false, mode: 'index' } }
+                    });
+                }
+
+                document.querySelectorAll('details').forEach((el) => {
+    // ... existing code ...
+                    el.addEventListener('toggle', () => {
+                        const arrow = el.querySelector('.details-arrow');
+                        arrow.style.transform = el.open ? 'rotate(180deg)' : 'rotate(0deg)';
+                    });
                 });
+
+                // 初始載入
+                loanTypeSelect.dispatchEvent(new Event('change'));
             }
 
-            function updateChart(labels, principalData, interestData) {
-                if (repaymentChart) repaymentChart.destroy();
-                const ctx = chartCanvas.getContext('2d');
-                repaymentChart = new Chart(ctx, {
-                    type: 'line', data: { labels: labels, datasets: [ { label: '本金', data: principalData, borderColor: 'rgb(79, 70, 229)', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.4 }, { label: '利息', data: interestData, borderColor: 'rgb(220, 38, 38)', backgroundColor: 'rgba(220, 38, 38, 0.1)', fill: true, tension: 0.4 } ] },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: (value) => 'NT$ ' + new Intl.NumberFormat().format(value) } }, x: { title: { display: true, text: '期數 (月)' } } }, plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${currencyFormatter.format(context.parsed.y)}` } } }, interaction: { intersect: false, mode: 'index' } }
-                });
-            }
+            // ---- 面板2: 頭期款準備試算 邏輯 ----
+            function setupDownPaymentCalculator() {
+    // ... existing code ...
+                const dpInputs = [propertyPriceInput, desiredMonthlyPaymentInput, interestRateDPInput, loanYearsDPInput];
+                dpInputs.forEach(input => input.addEventListener('input', calculateDownPayment));
+                addFormattingListener(propertyPriceInput, propertyPriceChineseDisplay, null);
+                addFormattingListener(desiredMonthlyPaymentInput, null, null);
 
-            document.querySelectorAll('details').forEach((el) => {
-                el.addEventListener('toggle', () => {
-                    const arrow = el.querySelector('.details-arrow');
-                    arrow.style.transform = el.open ? 'rotate(180deg)' : 'rotate(0deg)';
-                });
-            });
+                monthlyPaymentUpBtn.addEventListener('click', () => adjustMonthlyPayment(1000));
+                monthlyPaymentDownBtn.addEventListener('click', () => adjustMonthlyPayment(-1000));
 
-            // 初始載入
-            loanTypeSelect.dispatchEvent(new Event('change'));
-        }
+                function adjustMonthlyPayment(amount) {
+    // ... existing code ...
+                    const currentValue = parseFloat(desiredMonthlyPaymentInput.value.replace(/,/g, '')) || 0;
+                    const newValue = Math.max(0, currentValue + amount);
+                    setFormattedAmount(desiredMonthlyPaymentInput, newValue, null);
+                    calculateDownPayment();
+                }
 
-        // ---- 面板2: 頭期款準備試算 邏輯 ----
-        function setupDownPaymentCalculator() {
-            const dpInputs = [propertyPriceInput, desiredMonthlyPaymentInput, interestRateDPInput, loanYearsDPInput];
-            dpInputs.forEach(input => input.addEventListener('input', calculateDownPayment));
-            addFormattingListener(propertyPriceInput, propertyPriceChineseDisplay, null);
-            addFormattingListener(desiredMonthlyPaymentInput, null, null);
+                function calculateDownPayment() {
+    // ... existing code ...
+                    const price = parseFloat(propertyPriceInput.value.replace(/,/g, ''));
+                    const M = parseFloat(desiredMonthlyPaymentInput.value.replace(/,/g, ''));
+                    const annualRate = parseFloat(interestRateDPInput.value);
+                    const years = parseInt(loanYearsDPInput.value, 10);
 
-            monthlyPaymentUpBtn.addEventListener('click', () => {
-                adjustMonthlyPayment(1000);
-            });
-            monthlyPaymentDownBtn.addEventListener('click', () => {
-                adjustMonthlyPayment(-1000);
-            });
+                    dpCalcErrorMessageDiv.classList.add('hidden');
+                    dpInfoMessage.textContent = '';
 
-            function adjustMonthlyPayment(amount) {
-                const currentValue = parseFloat(desiredMonthlyPaymentInput.value.replace(/,/g, '')) || 0;
-                const newValue = Math.max(0, currentValue + amount);
-                setFormattedAmount(desiredMonthlyPaymentInput, newValue, null);
-                calculateDownPayment();
-            }
-
-            function calculateDownPayment() {
-                const price = parseFloat(propertyPriceInput.value.replace(/,/g, ''));
-                const M = parseFloat(desiredMonthlyPaymentInput.value.replace(/,/g, ''));
-                const annualRate = parseFloat(interestRateDPInput.value);
-                const years = parseInt(loanYearsDPInput.value, 10);
-
-                dpCalcErrorMessageDiv.classList.add('hidden');
-                dpInfoMessage.textContent = '';
-
-                if (isNaN(price) || price <= 0 || isNaN(M) || M <= 0 || isNaN(annualRate) || annualRate < 0 || isNaN(years) || years <= 0) {
-                    downPaymentResultDisplay.textContent = 'NT$ 0';
-                    affordableLoanResultDisplay.textContent = 'NT$ 0';
-                    downPaymentPercentageDisplay.textContent = '0%';
-                     if(price > 0 || M > 0) {
-                       dpCalcErrorMessageDiv.textContent = '請輸入有效的正數目標價、月付金、利率與年限。';
-                       dpCalcErrorMessageDiv.classList.remove('hidden');
+                    if (isNaN(price) || price <= 0 || isNaN(M) || M <= 0 || isNaN(annualRate) || annualRate < 0 || isNaN(years) || years <= 0) {
+                        downPaymentResultDisplay.textContent = 'NT$ 0';
+                        affordableLoanResultDisplay.textContent = 'NT$ 0';
+                        downPaymentPercentageDisplay.textContent = '0%';
+                         if(price > 0 || M > 0) {
+                           dpCalcErrorMessageDiv.textContent = '請輸入有效的正數目標價、月付金、利率與年限。';
+                           dpCalcErrorMessageDiv.classList.remove('hidden');
+                        }
+                        return;
                     }
-                    return;
+
+                    const i = annualRate / 100 / 12;
+                    const n = years * 12;
+                    const affordableLoan = (i === 0) ? (M * n) : (M * (Math.pow(1 + i, n) - 1)) / (i * Math.pow(1 + i, n));
+                    const downPayment = price - affordableLoan;
+
+                    if (downPayment <= 0) {
+                        downPaymentResultDisplay.textContent = 'NT$ 0';
+                        downPaymentPercentageDisplay.textContent = '0%';
+                        dpInfoMessage.textContent = '恭喜！您的月付能力已可完全負擔此目標。';
+                    } else {
+                        downPaymentResultDisplay.textContent = currencyFormatter.format(downPayment);
+                        const percentage = ((downPayment / price) * 100).toFixed(1);
+                        downPaymentPercentageDisplay.textContent = `${percentage}%`;
+                    }
+                    affordableLoanResultDisplay.textContent = currencyFormatter.format(affordableLoan);
                 }
-
-                const i = annualRate / 100 / 12;
-                const n = years * 12;
-
-                // 反推可負擔的貸款金額 P = M * [(1+i)^n - 1] / [i(1+i)^n]
-                const affordableLoan = (i === 0) ? (M * n) : (M * (Math.pow(1 + i, n) - 1)) / (i * Math.pow(1 + i, n));
-                const downPayment = price - affordableLoan;
-
-                if (downPayment <= 0) {
-                    downPaymentResultDisplay.textContent = 'NT$ 0';
-                    downPaymentPercentageDisplay.textContent = '0%';
-                    dpInfoMessage.textContent = '恭喜！您的月付能力已可完全負擔此目標。';
-                } else {
-                    downPaymentResultDisplay.textContent = currencyFormatter.format(downPayment);
-                    const percentage = ((downPayment / price) * 100).toFixed(1);
-                    downPaymentPercentageDisplay.textContent = `${percentage}%`;
-                }
-                affordableLoanResultDisplay.textContent = currencyFormatter.format(affordableLoan);
             }
-        }
 
+            // ---- 通用格式化函數 ----
+            function addFormattingListener(inputElement, chineseDisplayElement, callback) {
+    // ... existing code ...
+                inputElement.addEventListener('input', (e) => {
+                    const rawValue = e.target.value.replace(/,/g, '');
+                    if (rawValue === '') {
+                        if(chineseDisplayElement) chineseDisplayElement.textContent = '';
+                    } else {
+                        const numValue = parseInt(rawValue, 10);
+                        if (!isNaN(numValue)) {
+                            e.target.value = numValue.toLocaleString('en-US');
+                            if(chineseDisplayElement) chineseDisplayElement.textContent = formatToChineseUnits(numValue);
+                        }
+                    }
+                    if (callback) {
+                        callback();
+                    }
+                });
+            }
 
-        // ---- 通用格式化函數 ----
-        // 【*** 程式碼修正處 START ***】
-        // 修改函數，增加一個可選的回呼函數 (callback)
-        function addFormattingListener(inputElement, chineseDisplayElement, callback) {
-            inputElement.addEventListener('input', (e) => {
-                const rawValue = e.target.value.replace(/,/g, '');
-                if (rawValue === '') {
+            function setFormattedAmount(inputElement, amount, chineseDisplayElement) {
+    // ... existing code ...
+                if (amount === null || isNaN(amount) || amount === '') {
+                    inputElement.value = '';
                     if(chineseDisplayElement) chineseDisplayElement.textContent = '';
                 } else {
-                    const numValue = parseInt(rawValue, 10);
-                    if (!isNaN(numValue)) {
-                        e.target.value = numValue.toLocaleString('en-US');
-                        if(chineseDisplayElement) chineseDisplayElement.textContent = formatToChineseUnits(numValue);
-                    }
+                    inputElement.value = amount.toLocaleString('en-US');
+                    if(chineseDisplayElement) chineseDisplayElement.textContent = formatToChineseUnits(amount);
                 }
-                // 如果有提供回呼函數，則執行它
-                if (callback) {
-                    callback();
+                inputElement.dispatchEvent(new Event('input'));
+            }
+
+            function formatToChineseUnits(amount) {
+    // ... existing code ...
+                if (amount >= 100000000) {
+                    return `約 ${(amount / 100000000).toFixed(2)} 億元`;
+                } else if (amount >= 10000) {
+                    return `約 ${Math.round(amount / 10000)} 萬元`;
+                } else {
+                    return '';
                 }
+            }
+
+            // ---- 初始化所有計算器功能 ----
+            setupLoanCalculator();
+            setupDownPaymentCalculator();
+
+            // ---- 設定與內購相關的邏輯 ----
+            const settingsButton = document.getElementById('settings-button');
+    // ... existing code ...
+            const settingsModal = document.getElementById('settings-modal');
+            const closeModalButton = document.getElementById('close-modal-button');
+            const removeAdsButton = document.getElementById('remove-ads-button');
+
+            settingsButton.addEventListener('click', () => {
+                // 打開設定時，再次向 App 確認最新購買狀態
+                // `window.Android` 是在 Kotlin 中透過 `addJavascriptInterface` 建立的橋樑
+                if (window.Android && typeof window.Android.isAdsRemoved === 'function') {
+                    const isRemoved = window.Android.isAdsRemoved();
+                    updateUiForAds(isRemoved);
+                }
+                settingsModal.classList.add('visible');
             });
-        }
-        // 【*** 程式碼修正處 END ***】
 
-        function setFormattedAmount(inputElement, amount, chineseDisplayElement) {
-            if (amount === null || isNaN(amount) || amount === '') {
-                inputElement.value = '';
-                if(chineseDisplayElement) chineseDisplayElement.textContent = '';
+            const closeModal = () => settingsModal.classList.remove('visible');
+
+            closeModalButton.addEventListener('click', closeModal);
+            settingsModal.addEventListener('click', (event) => {
+                 // 點擊半透明背景時也關閉彈窗
+                 if (event.target === settingsModal) {
+                    closeModal();
+                 }
+            });
+
+            removeAdsButton.addEventListener('click', () => {
+                // 呼叫 Android 原生程式碼中的 `removeAds` 方法來啟動購買流程
+                if (window.Android && typeof window.Android.removeAds === 'function') {
+                    window.Android.removeAds();
+                } else {
+                    console.warn("無法呼叫原生購買功能。請確認是否在 Android App 環境中執行。");
+                    alert("此功能僅在 App 中提供。");
+                }
+                closeModal(); // 點擊後立即關閉彈窗
+            });
+
+            // 頁面初次載入時，立即檢查一次購買狀態
+            if (window.Android && typeof window.Android.isAdsRemoved === 'function') {
+                 updateUiForAds(window.Android.isAdsRemoved());
             } else {
-                inputElement.value = amount.toLocaleString('en-US');
-                if(chineseDisplayElement) chineseDisplayElement.textContent = formatToChineseUnits(amount);
+                 // 如果不在 App 環境中 (例如在一般瀏覽器)，預設為未移除廣告
+                 updateUiForAds(false);
             }
-            // 【*** 程式碼新增處 START ***】
-            // 手動觸發 input 事件，以確保所有監聽此事件的函數（如 addFormattingListener）都會被執行
-            inputElement.dispatchEvent(new Event('input'));
-            // 【*** 程式碼新增處 END ***】
-        }
-
-        function formatToChineseUnits(amount) {
-            if (amount >= 100000000) {
-                return `約 ${(amount / 100000000).toFixed(2)} 億元`;
-            } else if (amount >= 10000) {
-                return `約 ${Math.round(amount / 10000)} 萬元`;
-            } else {
-                return '';
-            }
-        }
-
-        // ---- 初始化所有功能 ----
-        setupLoanCalculator();
-        setupDownPaymentCalculator();
-    });
+        });
 </script>
 </body>
 </html>

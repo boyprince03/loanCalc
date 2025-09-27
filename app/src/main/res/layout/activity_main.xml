@@ -1,26 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 使用 ConstraintLayout 作為根佈局 -->
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:background="?android:attr/colorBackground"
     tools:context=".MainActivity">
 
-    <!--
-      WebView 元件:
-      - 我們將使用它來載入並顯示我們的網頁內容。
-      - `match_parent` 讓它填滿整個螢幕寬度和高度。
-      - `app:layout_...` 屬性將它的四個邊都約束到父容器的四個邊，確保它完全展開。
-    -->
     <WebView
         android:id="@+id/webview"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_above="@+id/adView"
+        />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
 
+    <com.google.android.gms.ads.AdView
+        android:id="@+id/adView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        app:adSize="BANNER"
+        app:adUnitId="ca-app-pub-3940256099942544/6300978111" />
+
+</RelativeLayout>
