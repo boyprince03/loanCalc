@@ -8,11 +8,12 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import com.android.billingclient.api.*
-import com.stevedaydream.loancalc.databinding.ActivityMainBinding
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.MobileAds
 import com.google.common.collect.ImmutableList
+import com.stevedaydream.loancalc.databinding.ActivityMainBinding
 import kotlinx.coroutines.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -31,11 +32,12 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
-        super.onCreate(savedInstanceState)
 
-        // 將主題應用於啟動畫面之後的主 Activity
-        // 確保在 setContentView 之前設定主題，避免閃爍
+        // <<-- 【修正處 START】 -->>
+        // setTheme() 必須在 super.onCreate() 和 setContentView() 之前呼叫
         setTheme(R.style.Theme_LoanCalculator)
+        super.onCreate(savedInstanceState)
+        // <<-- 【修正處 END】 -->>
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -45,10 +47,8 @@ class MainActivity : AppCompatActivity() {
 
         // 2. 設定 WebView
         binding.webview.apply {
-            // 【修改處 START】: 將 WebView 背景設為透明
-            // 這樣才能讓 HTML <body.> 的背景顏色顯示出來
+            // 將 WebView 背景設為透明，這樣才能讓 HTML 的背景顏色顯示出來
             setBackgroundColor(0) // 0 即 Color.TRANSPARENT
-            // 【修改處 END】
 
             settings.javaScriptEnabled = true
             addJavascriptInterface(WebAppInterface(), "Android")
@@ -57,8 +57,19 @@ class MainActivity : AppCompatActivity() {
             loadUrl("file:///android_asset/index.html")
         }
 
+        // 在這裡呼叫更新檢查
+        triggerUpdateCheck()
+
         // 3. 初始化 Google Play Billing
         setupBillingClient()
+    }
+
+    private fun triggerUpdateCheck() {
+        // 使用協程 (Coroutine) 在背景執行網路請求
+        lifecycleScope.launch {
+            val checker = UpdateChecker(this@MainActivity)
+            checker.checkForUpdate()
+        }
     }
 
     private fun setupBillingClient() {
@@ -89,7 +100,7 @@ class MainActivity : AppCompatActivity() {
                     if (featureSupportedResult.responseCode != BillingClient.BillingResponseCode.OK) {
                         Log.e("Billing", "此裝置不支援查詢商品詳情的特性 (isFeatureSupported failed)。錯誤: ${featureSupportedResult.debugMessage}")
                     } else {
-                        Log.d("Billing", "裝置支援查詢商品詳情特性，繼續執行。")
+                        Log.d("Billing", "裝置支援查詢商品情特性，繼續執行。")
                     }
 
                     queryPurchases()
@@ -218,5 +229,21 @@ class MainActivity : AppCompatActivity() {
         fun isAdsRemoved(): Boolean {
             return adsRemoved.get()
         }
+        /**
+         * 讓 JavaScript 獲取 App 的 versionName
+         * @return App 的版本號字串
+         */
+        @JavascriptInterface
+        fun getAppVersion(): String {
+            return try {
+                // 從 PackageManager 獲取版本資訊
+                packageManager.getPackageInfo(packageName, 0).versionName ?: "N/A"
+            } catch (e: Exception) {
+                Log.e("WebAppInterface", "無法獲取 App 版本號", e)
+                "N/A" // 如果發生錯誤，回傳 N/A
+            }
+        }
+
     }
+
 }

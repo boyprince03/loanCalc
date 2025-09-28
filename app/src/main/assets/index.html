@@ -134,18 +134,15 @@
         /* ---- 【修改處 END】 ---- */
     </style>
 </head>
-<!-- ... 之後的 body 內容維持不變 ... -->
 <body class="bg-gray-100 min-h-screen">
 
 <div class="fixed top-4 right-4 z-50">
-    <!-- ... existing code ... -->
     <button id="settings-button" class="p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-md hover:bg-gray-100 transition">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-600"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
     </button>
 </div>
 
 <div class="p-4">
-    <!-- ... existing code ... -->
     <div class="w-full max-w-4xl mx-auto">
         <div class="bg-white rounded-2xl shadow-lg">
             <div class="flex border-b border-gray-200">
@@ -219,7 +216,8 @@
                             <div class="flex items-center">
                                 <input type="number" id="loanYears" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：20">
                                 <span class="mx-2 text-gray-500">=</span>
-                                <span id="loanMonths" class="w-24 text-center font-semibold text-indigo-600">0 期</span>
+                                <input type="number" id="loanMonthsInput" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：240">
+                                <span class="ml-2 text-gray-500">期</span>
                             </div>
                         </div>
                         <div>
@@ -327,12 +325,12 @@
         </div>
         <footer class="text-center mt-4 text-xs text-gray-400">
             <p>此試算結果僅供參考，實際貸款條件與金額請以銀行提供為準。</p>
+            <p id="version-display" class="mt-1"></p>
         </footer>
     </div>
 </div>
 
 <div id="settings-modal" class="modal-overlay">
-    <!-- ... existing code ... -->
     <div class="modal-content">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-lg font-bold text-gray-800">設定</h2>
@@ -387,7 +385,7 @@
             const interestRateInput = document.getElementById('interestRate');
             const loanYearsInput = document.getElementById('loanYears');
             const processingFeeInput = document.getElementById('processingFee');
-            const loanMonthsDisplay = document.getElementById('loanMonths');
+            const loanMonthsInput = document.getElementById('loanMonthsInput');
             const monthlyPaymentDisplay = document.getElementById('monthlyPayment');
             const totalInterestDisplay = document.getElementById('totalInterest');
             const totalCostDisplay = document.getElementById('totalCost');
@@ -476,9 +474,24 @@
                 addFormattingListener(targetPriceInput, null, calculateLoanFromPrice); // 新增目標價格的監聽
                 loanPercentageSelect.addEventListener('change', calculateLoanFromPrice); // 新增貸款成數的監聽
                 interestRateInput.addEventListener('input', calculateAndDisplay);
+
                 loanYearsInput.addEventListener('input', () => {
-                    const years = parseInt(loanYearsInput.value, 10);
-                    loanMonthsDisplay.textContent = (!isNaN(years) && years > 0) ? `${years * 12} 期` : `0 期`;
+                    const years = parseFloat(loanYearsInput.value);
+                    if (!isNaN(years) && years > 0) {
+                        loanMonthsInput.value = Math.round(years * 12);
+                    } else {
+                        loanMonthsInput.value = '';
+                    }
+                    calculateAndDisplay();
+                });
+
+                loanMonthsInput.addEventListener('input', () => {
+                    const months = parseInt(loanMonthsInput.value, 10);
+                    if (!isNaN(months) && months > 0) {
+                        loanYearsInput.value = (months / 12).toFixed(2);
+                    } else {
+                        loanYearsInput.value = '';
+                    }
                     calculateAndDisplay();
                 });
 
@@ -501,7 +514,7 @@
     // ... existing code ...
                     const P = parseFloat(loanAmountInput.value.replace(/,/g, ''));
                     const annualRate = parseFloat(interestRateInput.value);
-                    const years = parseInt(loanYearsInput.value, 10);
+                    const years = parseFloat(loanYearsInput.value);
                     const fee = parseFloat(processingFeeInput.value.replace(/,/g, '')) || 0;
 
                     loanCalcErrorMessageDiv.classList.add('hidden');
@@ -761,6 +774,18 @@
             } else {
                  // 如果不在 App 環境中 (例如在一般瀏覽器)，預設為未移除廣告
                  updateUiForAds(false);
+            }
+
+            // 獲取並顯示 App 版本號
+            const versionDisplay = document.getElementById('version-display');
+            if (window.Android && typeof window.Android.getAppVersion === 'function') {
+                const version = window.Android.getAppVersion();
+                if (version && version !== "N/A") {
+                    versionDisplay.textContent = `當前版本 v${version}`;
+                }
+            } else {
+                // 如果在一般瀏覽器中開啟，可以顯示一個預設值
+                versionDisplay.textContent = '當前版本 vBrowser';
             }
         });
 </script>
