@@ -6,9 +6,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.provider.Settings
 import android.util.Log
 import android.view.LayoutInflater
 import android.widget.Toast
@@ -21,8 +23,6 @@ import org.json.JSONObject
 import java.io.File
 import java.net.URL
 
-// <<-- 【修正處 1】將 GITHUB_API_URL 改為 const val 並移到 Class 外部 -->>
-// 請將 "YOUR_USERNAME" 和 "YOUR_REPO" 替換成您自己的 GitHub 使用者名稱和專案名稱
 private const val GITHUB_API_URL = "https://api.github.com/repos/boyprince03/loanCalc/releases/latest"
 
 data class GitHubRelease(
@@ -34,8 +34,52 @@ data class GitHubRelease(
 class UpdateChecker(private val context: Context) {
 
     private var progressDialog: Dialog? = null
+    private var downloadId: Long = -1L
 
-    // 自動檢查更新 (給 MainActivity 啟動時呼叫)
+    // ▼▼▼▼▼ 【修改處 1】將 BroadcastReceiver 提升為成員變數 ▼▼▼▼▼
+    private val onComplete: BroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(recvContext: Context, intent: Intent) {
+            val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
+            if (id == downloadId) {
+                dismissProgress()
+                // 收到廣播後，立即反註冊自己
+                context.unregisterReceiver(this)
+
+                val query = DownloadManager.Query().setFilterById(id)
+                val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                val cursor = downloadManager.query(query)
+
+                if (cursor.moveToFirst()) {
+                    val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                    if (statusIndex >= 0) {
+                        val status = cursor.getInt(statusIndex)
+                        if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                            val uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
+                            if (uriIndex >= 0) {
+                                val downloadedFileUri = Uri.parse(cursor.getString(uriIndex))
+                                val file = File(downloadedFileUri.path!!)
+                                if (file.exists()) {
+                                    installApk(file)
+                                } else {
+                                    Log.e("UpdateChecker", "Downloaded file not found!")
+                                    showToast("下載檔案遺失，請重試。")
+                                }
+                            }
+                        } else {
+                            val reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON)
+                            val reason = if (reasonIndex >= 0) cursor.getInt(reasonIndex) else 0
+                            Log.e("UpdateChecker", "Download failed with status: $status, reason: $reason")
+                            showToast("下載失敗，請檢查網路連線或儲存空間。")
+                        }
+                    }
+                }
+                cursor.close()
+            }
+        }
+    }
+    // ▲▲▲▲▲ 【修改處 1】結束 ▲▲▲▲▲
+
+    // ... checkForUpdate 和 checkManually 函式保持不變 ...
     suspend fun checkForUpdate() {
         try {
             val latestRelease = getLatestReleaseInfo() ?: return
@@ -54,7 +98,6 @@ class UpdateChecker(private val context: Context) {
         }
     }
 
-    // 手動檢查更新 (給 WebAppInterface 呼叫)
     suspend fun checkManually() {
         withContext(Dispatchers.Main) {
             Toast.makeText(context, "正在檢查更新...", Toast.LENGTH_SHORT).show()
@@ -108,7 +151,12 @@ class UpdateChecker(private val context: Context) {
     }
 
     private fun getCurrentAppVersion(): String {
-        return context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
+        return try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
+        } catch (e: Exception) {
+            Log.e("UpdateChecker", "Could not get package info", e)
+            ""
+        }
     }
 
     private fun isNewerVersion(latestVersion: String, currentVersion: String): Boolean {
@@ -136,14 +184,20 @@ class UpdateChecker(private val context: Context) {
             .setNeutralButton("背景更新") { _, _ ->
                 downloadAndInstall(release, showProgressDialog = false)
             }
-            .setPositiveButton("立即更新") { _, _ ->
+            .setPositiveButton("下載更新檔") { _, _ ->
                 downloadAndInstall(release, showProgressDialog = true)
             }
             .setCancelable(false)
             .show()
     }
 
+    // ▼▼▼▼▼ 【修改處 2】重構 downloadAndInstall 函式 ▼▼▼▼▼
     private fun downloadAndInstall(release: GitHubRelease, showProgressDialog: Boolean) {
+        if (!isDownloadManagerEnabled()) {
+            showDownloadManagerDisabledDialog()
+            return
+        }
+
         val fileName = "app-release-${release.tagName}.apk"
         val destination = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
         if (destination != null && destination.exists()) {
@@ -159,29 +213,13 @@ class UpdateChecker(private val context: Context) {
             .setAllowedOverRoaming(true)
 
         val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val downloadId = downloadManager.enqueue(request)
+        downloadId = downloadManager.enqueue(request)
 
         if (showProgressDialog) {
             showProgress()
         }
 
-        val onComplete = object : BroadcastReceiver() {
-            override fun onReceive(recvContext: Context, intent: Intent) {
-                val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-                if (id == downloadId) {
-                    dismissProgress()
-                    val downloadedFile = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
-                    if (downloadedFile.exists()) {
-                        installApk(downloadedFile)
-                    } else {
-                        Log.e("UpdateChecker", "Downloaded file not found!")
-                    }
-                    context.unregisterReceiver(this)
-                }
-            }
-        }
-
-        // <<-- 【修正處 2】根據 Android 版本決定如何註冊廣播接收器 -->>
+        // 註冊我們提升為成員變數的 Receiver
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(
                 onComplete,
@@ -192,6 +230,7 @@ class UpdateChecker(private val context: Context) {
             context.registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
         }
     }
+    // ▲▲▲▲▲ 【修改處 2】結束 ▲▲▲▲▲
 
     private fun installApk(file: File) {
         val apkUri = FileProvider.getUriForFile(
@@ -204,7 +243,12 @@ class UpdateChecker(private val context: Context) {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(intent)
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e("UpdateChecker", "Error starting install activity", e)
+            showToast("無法啟動安裝程式，請手動至下載資料夾安裝。")
+        }
     }
 
     private fun showProgress() {
@@ -221,5 +265,36 @@ class UpdateChecker(private val context: Context) {
 
     private fun dismissProgress() {
         progressDialog?.dismiss()
+        progressDialog = null // 確保下次能重建
     }
+
+    // ▼▼▼▼▼ 【修改處 3】新增輔助函式 ▼▼▼▼▼
+    private fun isDownloadManagerEnabled(): Boolean {
+        val state = context.packageManager.getApplicationEnabledSetting("com.android.providers.downloads")
+        return !(state == PackageManager.COMPONENT_ENABLED_STATE_DISABLED ||
+                state == PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER)
+    }
+
+    private fun showDownloadManagerDisabledDialog() {
+        AlertDialog.Builder(context)
+            .setTitle("下載服務已停用")
+            .setMessage("請至「設定 > 應用程式」中啟用「下載管理員」服務後再試一次。")
+            .setPositiveButton("前往設定") { _, _ ->
+                try {
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                    intent.data = Uri.parse("package:com.android.providers.downloads")
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    // 如果找不到，開啟所有應用程式列表
+                    context.startActivity(Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS))
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun showToast(message: String) {
+        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+    }
+    // ▲▲▲▲▲ 【修改處 3】結束 ▲▲▲▲▲
 }

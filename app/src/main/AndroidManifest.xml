@@ -8,6 +8,7 @@
     <uses-permission android:name="com.android.vending.BILLING" />
     <!-- 網路存取和安裝權限-->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
