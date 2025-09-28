@@ -13,6 +13,7 @@ import android.os.Environment
 import android.provider.Settings
 import android.util.Log
 import android.view.LayoutInflater
+import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.FileProvider
@@ -35,41 +36,43 @@ class UpdateChecker(private val context: Context) {
 
     private var progressDialog: Dialog? = null
     private var downloadId: Long = -1L
+    private var downloadedApkUri: Uri? = null // 用於儲存下載好的 URI
 
-    // ▼▼▼▼▼ 【修改處 1】將 BroadcastReceiver 提升為成員變數 ▼▼▼▼▼
     private val onComplete: BroadcastReceiver = object : BroadcastReceiver() {
+        // ... onReceive 邏輯保持不變 ...
         override fun onReceive(recvContext: Context, intent: Intent) {
             val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-            if (id == downloadId) {
+            if (id == downloadId && id != -1L) {
+                try {
+                    context.unregisterReceiver(this)
+                } catch (e: IllegalArgumentException) {
+                    Log.w("UpdateChecker", "Receiver was not registered or already unregistered.")
+                }
                 dismissProgress()
-                // 收到廣播後，立即反註冊自己
-                context.unregisterReceiver(this)
-
-                val query = DownloadManager.Query().setFilterById(id)
                 val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                val query = DownloadManager.Query().setFilterById(id)
                 val cursor = downloadManager.query(query)
-
                 if (cursor.moveToFirst()) {
                     val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
                     if (statusIndex >= 0) {
-                        val status = cursor.getInt(statusIndex)
-                        if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                            val uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
-                            if (uriIndex >= 0) {
-                                val downloadedFileUri = Uri.parse(cursor.getString(uriIndex))
-                                val file = File(downloadedFileUri.path!!)
-                                if (file.exists()) {
-                                    installApk(file)
-                                } else {
-                                    Log.e("UpdateChecker", "Downloaded file not found!")
-                                    showToast("下載檔案遺失，請重試。")
+                        when (cursor.getInt(statusIndex)) {
+                            DownloadManager.STATUS_SUCCESSFUL -> {
+                                val uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
+                                if (uriIndex >= 0) {
+                                    val downloadedFileUriStr = cursor.getString(uriIndex)
+                                    if (downloadedFileUriStr != null) {
+                                        downloadedApkUri = Uri.parse(downloadedFileUriStr)
+                                        Log.d("UpdateChecker", "Download successful. URI: $downloadedApkUri")
+                                        // 下載成功後，直接觸發安裝（包含權限檢查）
+                                        installApkWithPermissionCheck()
+                                    } else {
+                                        showToast("下載成功，但無法取得檔案路徑。")
+                                    }
                                 }
                             }
-                        } else {
-                            val reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON)
-                            val reason = if (reasonIndex >= 0) cursor.getInt(reasonIndex) else 0
-                            Log.e("UpdateChecker", "Download failed with status: $status, reason: $reason")
-                            showToast("下載失敗，請檢查網路連線或儲存空間。")
+                            DownloadManager.STATUS_FAILED -> {
+                                showToast("下載失敗，請檢查網路或儲存空間。")
+                            }
                         }
                     }
                 }
@@ -77,36 +80,79 @@ class UpdateChecker(private val context: Context) {
             }
         }
     }
-    // ▲▲▲▲▲ 【修改處 1】結束 ▲▲▲▲▲
 
-    // ... checkForUpdate 和 checkManually 函式保持不變 ...
-    suspend fun checkForUpdate() {
-        try {
-            val latestRelease = getLatestReleaseInfo() ?: return
-            val currentVersion = getCurrentAppVersion()
-            val latestVersionName = latestRelease.tagName.removePrefix("v")
+    // ▼▼▼▼▼ 【核心修改 1】新增權限檢查與安裝啟動器 ▼▼▼▼▼
+    fun installApkWithPermissionCheck() {
+        if (downloadedApkUri == null) {
+            Log.e("UpdateChecker", "APK URI is null, cannot install.")
+            showToast("找不到安裝檔。")
+            return
+        }
 
-            if (currentVersion.isEmpty()) return
-
-            if (isNewerVersion(latestVersionName, currentVersion)) {
-                withContext(Dispatchers.Main) {
-                    showUpdateDialog(latestRelease)
-                }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // 對於 Android 8.0 (Oreo) 及以上版本
+            if (context.packageManager.canRequestPackageInstalls()) {
+                // 如果已經有權限，直接安裝
+                performInstall(downloadedApkUri!!)
+            } else {
+                // 如果沒有權限，跳轉到設定頁面讓使用者授權
+                showPermissionDialog()
             }
-        } catch (e: Exception) {
-            Log.e("UpdateChecker", "Error during automatic update check", e)
+        } else {
+            // 對於舊版 Android，直接安裝
+            performInstall(downloadedApkUri!!)
         }
     }
 
-    suspend fun checkManually() {
-        withContext(Dispatchers.Main) {
-            Toast.makeText(context, "正在檢查更新...", Toast.LENGTH_SHORT).show()
+    private fun showPermissionDialog() {
+        AlertDialog.Builder(context)
+            .setTitle("需要安裝權限")
+            .setMessage("為了更新應用程式，請在接下來的畫面中，允許「安裝未知應用程式」的權限。")
+            .setPositiveButton("前往設定") { _, _ ->
+                val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                }
+                // 我們無法直接從這裡 startActivityForResult，
+                // 這需要在 Activity 中處理。但使用者授權後回來，可以再次點擊更新。
+                context.startActivity(intent)
+                showToast("請授權後，重新點擊更新按鈕")
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+    // ▲▲▲▲▲ 【核心修改 1】結束 ▲▲▲▲▲
+
+    // ▼▼▼▼▼ 【核心修改 2】將原來的 installApk 改名為 performInstall ▼▼▼▼▼
+    private fun performInstall(apkUri: Uri) {
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(apkUri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e("UpdateChecker", "Error starting install activity", e)
+            showToast("無法啟動安裝程式，請手動至『下載』資料夾安裝。")
+        }
+    }
+    // ▲▲▲▲▲ 【核心修改 2】結束 ▲▲▲▲▲
+
+
+    // ... 其他所有函式 (checkForUpdate, downloadAndInstall, showProgress 等) 保持原樣 ...
+    suspend fun checkForUpdate(isManual: Boolean) {
+        if (isManual) {
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "正在檢查更新...", Toast.LENGTH_SHORT).show()
+            }
         }
         try {
             val latestRelease = getLatestReleaseInfo()
             if (latestRelease == null) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "檢查更新失敗，請稍後再試", Toast.LENGTH_LONG).show()
+                if (isManual) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "檢查更新失敗，請稍後再試", Toast.LENGTH_LONG).show()
+                    }
                 }
                 return
             }
@@ -119,17 +165,25 @@ class UpdateChecker(private val context: Context) {
                     showUpdateDialog(latestRelease)
                 }
             } else {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "您目前已是最新版本", Toast.LENGTH_SHORT).show()
+                if (isManual) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "您目前已是最新版本", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         } catch (e: Exception) {
-            Log.e("UpdateChecker", "Error during manual update check", e)
-            withContext(Dispatchers.Main) {
-                Toast.makeText(context, "檢查更新時發生錯誤: ${e.message}", Toast.LENGTH_LONG).show()
+            Log.e("UpdateChecker", "Error during update check", e)
+            if (isManual) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "檢查更新時發生錯誤: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
+
+    suspend fun checkForUpdate() = checkForUpdate(false)
+    suspend fun checkManually() = checkForUpdate(true)
+
 
     private suspend fun getLatestReleaseInfo(): GitHubRelease? = withContext(Dispatchers.IO) {
         try {
@@ -191,7 +245,6 @@ class UpdateChecker(private val context: Context) {
             .show()
     }
 
-    // ▼▼▼▼▼ 【修改處 2】重構 downloadAndInstall 函式 ▼▼▼▼▼
     private fun downloadAndInstall(release: GitHubRelease, showProgressDialog: Boolean) {
         if (!isDownloadManagerEnabled()) {
             showDownloadManagerDisabledDialog()
@@ -199,80 +252,64 @@ class UpdateChecker(private val context: Context) {
         }
 
         val fileName = "app-release-${release.tagName}.apk"
-        val destination = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-        if (destination != null && destination.exists()) {
-            File(destination, fileName).delete()
-        }
-
         val request = DownloadManager.Request(Uri.parse(release.downloadUrl))
             .setTitle("正在下載更新...")
             .setDescription(fileName)
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, fileName)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName) // 使用公共目錄
             .setAllowedOverMetered(true)
             .setAllowedOverRoaming(true)
 
         val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val destination = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        val oldFile = File(destination, fileName)
+        if (oldFile.exists()) {
+            oldFile.delete()
+        }
+
         downloadId = downloadManager.enqueue(request)
 
         if (showProgressDialog) {
             showProgress()
         }
 
-        // 註冊我們提升為成員變數的 Receiver
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(
-                onComplete,
-                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-                Context.RECEIVER_NOT_EXPORTED
-            )
+            context.registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_NOT_EXPORTED)
         } else {
             context.registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
         }
     }
-    // ▲▲▲▲▲ 【修改處 2】結束 ▲▲▲▲▲
-
-    private fun installApk(file: File) {
-        val apkUri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.provider",
-            file
-        )
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(apkUri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        try {
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            Log.e("UpdateChecker", "Error starting install activity", e)
-            showToast("無法啟動安裝程式，請手動至下載資料夾安裝。")
-        }
-    }
 
     private fun showProgress() {
-        if (progressDialog == null) {
+        if (progressDialog == null || progressDialog?.isShowing == false) {
             val builder = AlertDialog.Builder(context)
             val inflater = LayoutInflater.from(context)
             val view = inflater.inflate(R.layout.dialog_progress, null)
+            val closeButton = view.findViewById<Button>(R.id.close_button)
+            closeButton.setOnClickListener {
+                dismissProgress()
+                Toast.makeText(context, "請至手機的『下載』資料夾手動安裝更新", Toast.LENGTH_LONG).show()
+            }
             builder.setView(view)
             builder.setCancelable(false)
             progressDialog = builder.create()
+            progressDialog?.show()
         }
-        progressDialog?.show()
     }
 
     private fun dismissProgress() {
         progressDialog?.dismiss()
-        progressDialog = null // 確保下次能重建
+        progressDialog = null
     }
 
-    // ▼▼▼▼▼ 【修改處 3】新增輔助函式 ▼▼▼▼▼
     private fun isDownloadManagerEnabled(): Boolean {
-        val state = context.packageManager.getApplicationEnabledSetting("com.android.providers.downloads")
-        return !(state == PackageManager.COMPONENT_ENABLED_STATE_DISABLED ||
-                state == PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER)
+        return try {
+            val state = context.packageManager.getApplicationEnabledSetting("com.android.providers.downloads")
+            !(state == PackageManager.COMPONENT_ENABLED_STATE_DISABLED ||
+                    state == PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER)
+        } catch (e: Exception) {
+            false
+        }
     }
 
     private fun showDownloadManagerDisabledDialog() {
@@ -285,7 +322,6 @@ class UpdateChecker(private val context: Context) {
                     intent.data = Uri.parse("package:com.android.providers.downloads")
                     context.startActivity(intent)
                 } catch (e: Exception) {
-                    // 如果找不到，開啟所有應用程式列表
                     context.startActivity(Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS))
                 }
             }
@@ -296,5 +332,5 @@ class UpdateChecker(private val context: Context) {
     private fun showToast(message: String) {
         Toast.makeText(context, message, Toast.LENGTH_LONG).show()
     }
-    // ▲▲▲▲▲ 【修改處 3】結束 ▲▲▲▲▲
+
 }
