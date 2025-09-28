@@ -331,22 +331,35 @@
 </div>
 
 <div id="settings-modal" class="modal-overlay">
-    <div class="modal-content">
-        <div class="flex justify-between items-center mb-6">
+    <div class="modal-content space-y-4">
+        <div class="flex justify-between items-center">
             <h2 class="text-lg font-bold text-gray-800">設定</h2>
             <button id="close-modal-button" class="text-gray-500 hover:text-gray-800 text-2xl leading-none">&times;</button>
         </div>
-        <div id="remove-ads-container">
-            <button id="remove-ads-button" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                移除廣告 (一次性付費)
-            </button>
-            <p class="text-xs text-gray-500 mt-2 text-center">您的支持是我們進步的動力！</p>
+
+        <div id="purchase-section">
+            <div id="remove-ads-container">
+                <button id="remove-ads-button" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    移除廣告 (一次性付費)
+                </button>
+                <p class="text-xs text-gray-500 mt-2 text-center">您的支持是我們進步的動力！</p>
+            </div>
+
+            <div id="ads-removed-message" class="hidden text-center text-gray-600 py-4 space-y-4">
+                <p>✓ 已成功移除廣告，感謝您的支持！</p>
+                <button id="restore-purchase-button" class="w-full bg-gray-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">
+                    恢復購買
+                </button>
+            </div>
         </div>
-        <div id="ads-removed-message" class="hidden text-center text-gray-600 py-4">
-            <p>✓ 已成功移除廣告，感謝您的支持！</p>
+        <div>
+            <button id="manual-update-button" class="w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition">
+                檢查更新
+            </button>
         </div>
     </div>
 </div>
+
 
 <script>
     // ... 腳本內容維持不變 ...
@@ -355,20 +368,64 @@
          * 用於根據購買狀態更新 WebView 的 UI。
          * @param {boolean} isRemoved - 是否已購買移除廣告。
          */
-    // ... existing code ...
+
         function updateUiForAds(isRemoved) {
+            // 【修改處 START】: 更新 UI 邏輯
             const removeAdsContainer = document.getElementById('remove-ads-container');
             const adsRemovedMessage = document.getElementById('ads-removed-message');
 
             if (isRemoved) {
                 document.body.style.paddingBottom = '0px'; // 移除為廣告預留的空間
                 if (removeAdsContainer) removeAdsContainer.style.display = 'none';
-                if (adsRemovedMessage) adsRemovedMessage.style.display = 'block';
+                if (adsRemovedMessage) adsRemovedMessage.style.display = 'block'; // 改為 block 來顯示
             } else {
                 document.body.style.paddingBottom = '60px'; // 恢復為廣告預留的空間
                 if (removeAdsContainer) removeAdsContainer.style.display = 'block';
                 if (adsRemovedMessage) adsRemovedMessage.style.display = 'none';
             }
+            // 【修改處 END】
+        }
+          // ---- 設定與內購相關的邏輯 ----
+        const settingsButton = document.getElementById('settings-button');
+        const settingsModal = document.getElementById('settings-modal');
+        const closeModalButton = document.getElementById('close-modal-button');
+        const removeAdsButton = document.getElementById('remove-ads-button');
+        const restorePurchaseButton = document.getElementById('restore-purchase-button'); // 【新增】
+        const manualUpdateButton = document.getElementById('manual-update-button');
+
+        // ... 其他事件監聽器 ...
+
+        removeAdsButton.addEventListener('click', () => {
+            if (window.Android && typeof window.Android.removeAds === 'function') {
+                window.Android.removeAds();
+            } else {
+                console.warn("無法呼叫原生購買功能。");
+                alert("此功能僅在 App 中提供。");
+            }
+            closeModal();
+        });
+
+        // 【新增】恢復購買按鈕的事件監聽
+        restorePurchaseButton.addEventListener('click', () => {
+            if (window.Android && typeof window.Android.restorePurchase === 'function') {
+                window.Android.restorePurchase();
+            } else {
+                console.warn("無法呼叫原生恢復購買功能。");
+                alert("此功能僅在 App 中提供。");
+            }
+            closeModal();
+        });
+
+
+        // 頁面初次載入時，立即檢查一次購買狀態
+        // 我們將這個函數暴露到全域，以便 Kotlin 可以呼叫
+        window.updateUiForAds = updateUiForAds;
+
+        if (window.Android && typeof window.Android.isAdsRemoved === 'function') {
+             updateUiForAds(window.Android.isAdsRemoved());
+        } else {
+             // 如果不在 App 環境中 (例如在一般瀏覽器)，預設為未移除廣告
+             updateUiForAds(false);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -736,6 +793,19 @@
             const settingsModal = document.getElementById('settings-modal');
             const closeModalButton = document.getElementById('close-modal-button');
             const removeAdsButton = document.getElementById('remove-ads-button');
+
+            const manualUpdateButton = document.getElementById('manual-update-button');
+
+            manualUpdateButton.addEventListener('click', () => {
+                if (window.Android && typeof window.Android.manualUpdateCheck === 'function') {
+                    // 呼叫 Android 原生程式碼中的手動檢查更新方法
+                    window.Android.manualUpdateCheck();
+                } else {
+                    console.warn("無法呼叫原生更新功能。");
+                    alert("此功能僅在 App 中提供。");
+                }
+                closeModal(); // 點擊後立即關閉彈窗
+            });
 
             settingsButton.addEventListener('click', () => {
                 // 打開設定時，再次向 App 確認最新購買狀態
