@@ -14,11 +14,16 @@ import android.view.LayoutInflater
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.FileProvider
+import com.stevedaydream.loancalc.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 import java.net.URL
+
+// <<-- 【修正處 1】將 GITHUB_API_URL 改為 const val 並移到 Class 外部 -->>
+// 請將 "YOUR_USERNAME" 和 "YOUR_REPO" 替換成您自己的 GitHub 使用者名稱和專案名稱
+private const val GITHUB_API_URL = "https://api.github.com/repos/boyprince03/loanCalc/releases/latest"
 
 data class GitHubRelease(
     val tagName: String,
@@ -28,7 +33,6 @@ data class GitHubRelease(
 
 class UpdateChecker(private val context: Context) {
 
-    private val GITHUB_API_URL = "https://api.github.com/repos/boyprince03/loanCalc/releases/latest"
     private var progressDialog: Dialog? = null
 
     // 自動檢查更新 (給 MainActivity 啟動時呼叫)
@@ -42,7 +46,7 @@ class UpdateChecker(private val context: Context) {
 
             if (isNewerVersion(latestVersionName, currentVersion)) {
                 withContext(Dispatchers.Main) {
-                    showUpdateDialog(latestRelease, false) // 自動檢查時，不顯示進度
+                    showUpdateDialog(latestRelease)
                 }
             }
         } catch (e: Exception) {
@@ -69,7 +73,7 @@ class UpdateChecker(private val context: Context) {
 
             if (isNewerVersion(latestVersionName, currentVersion)) {
                 withContext(Dispatchers.Main) {
-                    showUpdateDialog(latestRelease, true) // 手動檢查時，提供進度選項
+                    showUpdateDialog(latestRelease)
                 }
             } else {
                 withContext(Dispatchers.Main) {
@@ -88,7 +92,6 @@ class UpdateChecker(private val context: Context) {
         try {
             val jsonStr = URL(GITHUB_API_URL).readText()
             val json = JSONObject(jsonStr)
-
             val tagName = json.getString("tag_name")
             val releaseNotes = json.getString("body")
             val assets = json.getJSONArray("assets")
@@ -96,9 +99,7 @@ class UpdateChecker(private val context: Context) {
             if (assets.length() > 0) {
                 downloadUrl = assets.getJSONObject(0).getString("browser_download_url")
             }
-
             if (downloadUrl.isEmpty()) throw Exception("No APK asset found.")
-
             GitHubRelease(tagName, downloadUrl, releaseNotes)
         } catch(e: Exception) {
             Log.e("UpdateChecker", "Failed to get release info", e)
@@ -111,24 +112,27 @@ class UpdateChecker(private val context: Context) {
     }
 
     private fun isNewerVersion(latestVersion: String, currentVersion: String): Boolean {
-        // ... (版本比較邏輯維持不變)
         val latestParts = latestVersion.split('.').mapNotNull { it.toIntOrNull() }
         val currentParts = currentVersion.split('.').mapNotNull { it.toIntOrNull() }
-        if (latestParts.size != 3 || currentParts.size != 3) return false
-
-        for (i in 0 until 3) {
-            if (latestParts[i] > currentParts[i]) return true
-            if (latestParts[i] < currentParts[i]) return false
+        if (latestVersion.split('.').size != latestParts.size || currentVersion.split('.').size != currentParts.size) {
+            Log.w("UpdateChecker", "版本號包含非數字字元，無法比對: '$latestVersion' vs '$currentVersion'")
+            return false
+        }
+        val maxParts = maxOf(latestParts.size, currentParts.size)
+        for (i in 0 until maxParts) {
+            val latestPart = latestParts.getOrElse(i) { 0 }
+            val currentPart = currentParts.getOrElse(i) { 0 }
+            if (latestPart > currentPart) return true
+            if (latestPart < currentPart) return false
         }
         return false
     }
 
-    private fun showUpdateDialog(release: GitHubRelease, isManual: Boolean) {
-        val builder = AlertDialog.Builder(context)
+    private fun showUpdateDialog(release: GitHubRelease) {
+        AlertDialog.Builder(context)
             .setTitle("發現新版本: ${release.tagName}")
             .setMessage("更新日誌:\n${release.releaseNotes}")
             .setNegativeButton("稍後再說", null)
-            // 【修改處】新增 "背景更新" 按鈕
             .setNeutralButton("背景更新") { _, _ ->
                 downloadAndInstall(release, showProgressDialog = false)
             }
@@ -136,16 +140,14 @@ class UpdateChecker(private val context: Context) {
                 downloadAndInstall(release, showProgressDialog = true)
             }
             .setCancelable(false)
-
-        builder.show()
+            .show()
     }
 
     private fun downloadAndInstall(release: GitHubRelease, showProgressDialog: Boolean) {
         val fileName = "app-release-${release.tagName}.apk"
-        // 將檔案存放在 App 的私有外部儲存空間，避免權限問題
         val destination = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
         if (destination != null && destination.exists()) {
-            File(destination, fileName).delete() // 如果舊檔案存在，先刪除
+            File(destination, fileName).delete()
         }
 
         val request = DownloadManager.Request(Uri.parse(release.downloadUrl))
@@ -178,9 +180,14 @@ class UpdateChecker(private val context: Context) {
                 }
             }
         }
-        // 註冊廣播接收器
+
+        // <<-- 【修正處 2】根據 Android 版本決定如何註冊廣播接收器 -->>
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_NOT_EXPORTED)
+            context.registerReceiver(
+                onComplete,
+                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                Context.RECEIVER_NOT_EXPORTED
+            )
         } else {
             context.registerReceiver(onComplete, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
         }
@@ -200,12 +207,11 @@ class UpdateChecker(private val context: Context) {
         context.startActivity(intent)
     }
 
-    // 顯示一個簡單的進度圈對話框
     private fun showProgress() {
         if (progressDialog == null) {
             val builder = AlertDialog.Builder(context)
             val inflater = LayoutInflater.from(context)
-            val view = inflater.inflate(R.layout.dialog_progress, null) // 需要建立一個新的 layout 檔案
+            val view = inflater.inflate(R.layout.dialog_progress, null)
             builder.setView(view)
             builder.setCancelable(false)
             progressDialog = builder.create()
@@ -213,7 +219,6 @@ class UpdateChecker(private val context: Context) {
         progressDialog?.show()
     }
 
-    // 關閉進度對話框
     private fun dismissProgress() {
         progressDialog?.dismiss()
     }
